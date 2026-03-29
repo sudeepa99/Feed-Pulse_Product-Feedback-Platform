@@ -10,11 +10,11 @@ export default function HomePage() {
               FeedPulse
             </p>
             <h1 className="text-4xl font-bold leading-tight md:text-6xl">
-              AI-powered product feedback that helps teams build smarter
+              AI-powered feedback for better product decisions
             </h1>
-            <p className="mt-4 text-base text-slate-300 md:text-lg">
-              Collect user feedback, analyze it with AI, and prioritize what
-              matters most.
+            <p className="mt-4 max-w-xl text-base text-slate-300 md:text-lg">
+              Collect feature requests, bugs, and improvements in one place. Let
+              AI categorize, summarize, and score what matters most.
             </p>
           </div>
 
