@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import axios from "axios";
 import API from "@/app/lib/api";
+import DashboardTable from "@/app/components/dashboard-table";
+import FeedbackCard from "@/app/components/feedback-card";
+import StatsBar from "@/app/components/stats-bar";
 
 type Feedback = {
   _id: string;
@@ -12,16 +14,8 @@ type Feedback = {
   ai_sentiment?: string;
   ai_priority?: number;
   ai_summary?: string;
+  ai_tags?: string[];
   createdAt: string;
-};
-
-type FeedbackListResponse = {
-  success: boolean;
-  data: {
-    items: Feedback[];
-  };
-  message: string;
-  error: string | null;
 };
 
 export default function DashboardPage() {
@@ -29,28 +23,32 @@ export default function DashboardPage() {
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [order, setOrder] = useState("desc");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
-  const loadFeedback = async () => {
+  const fetchFeedback = async () => {
     try {
       setLoading(true);
-      setError("");
-
       const token = localStorage.getItem("token");
 
-      const res = await API.get<FeedbackListResponse>("/feedback", {
-        params: { category, status, search, limit: 10 },
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await API.get("/feedback", {
+        params: {
+          category: category || undefined,
+          status: status || undefined,
+          search: search || undefined,
+          sortBy,
+          order,
+          limit: 10,
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
-      setItems(res.data.data.items);
-    } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.message || "Failed to load feedback");
-      } else {
-        setError("Failed to load feedback");
-      }
+      setItems(res.data.data.items || []);
+    } catch (error) {
+      console.error("Failed to fetch feedback", error);
     } finally {
       setLoading(false);
     }
@@ -63,58 +61,22 @@ export default function DashboardPage() {
       await API.patch(
         `/feedback/${id}`,
         { status: nextStatus },
-        { headers: { Authorization: `Bearer ${token}` } },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
       );
 
-      await loadFeedback();
-    } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.message || "Failed to update status");
-      } else {
-        setError("Failed to update status");
-      }
+      fetchFeedback();
+    } catch (error) {
+      console.error("Failed to update status", error);
     }
   };
 
   useEffect(() => {
-    let ignore = false;
-
-    const run = async () => {
-      try {
-        setLoading(true);
-        setError("");
-
-        const token = localStorage.getItem("token");
-
-        const res = await API.get<FeedbackListResponse>("/feedback", {
-          params: { category, status, search, limit: 10 },
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!ignore) {
-          setItems(res.data.data.items);
-        }
-      } catch (err: unknown) {
-        if (!ignore) {
-          if (axios.isAxiosError(err)) {
-            setError(err.response?.data?.message || "Failed to load feedback");
-          } else {
-            setError("Failed to load feedback");
-          }
-        }
-      } finally {
-        if (!ignore) {
-          setLoading(false);
-        }
-      }
-    };
-
-    run();
-
-    return () => {
-      ignore = true;
-    };
-  }, [category, status, search]);
+    fetchFeedback();
+  }, []);
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-6 text-white md:px-8">
@@ -122,26 +84,22 @@ export default function DashboardPage() {
         <div className="mb-6">
           <h1 className="text-3xl font-bold md:text-4xl">Admin Dashboard</h1>
           <p className="mt-1 text-slate-400">
-            Manage, review, and prioritize feedback.
+            Manage, review, and prioritize product feedback.
           </p>
         </div>
 
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl bg-white/5 p-4">Total Feedback</div>
-          <div className="rounded-2xl bg-white/5 p-4">Open Items</div>
-          <div className="rounded-2xl bg-white/5 p-4">Avg Priority</div>
-          <div className="rounded-2xl bg-white/5 p-4">Top Tag</div>
-        </div>
+        <StatsBar items={items} />
 
-        <div className="mb-6 grid gap-3 md:grid-cols-4">
+        <div className="mb-6 grid gap-3 md:grid-cols-5">
           <input
-            className="rounded-xl bg-slate-900 px-4 py-3"
+            className="rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none"
             placeholder="Search title or summary"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+
           <select
-            className="rounded-xl bg-slate-900 px-4 py-3"
+            className="rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
@@ -151,8 +109,9 @@ export default function DashboardPage() {
             <option value="Improvement">Improvement</option>
             <option value="Other">Other</option>
           </select>
+
           <select
-            className="rounded-xl bg-slate-900 px-4 py-3"
+            className="rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
           >
@@ -161,91 +120,50 @@ export default function DashboardPage() {
             <option value="In Review">In Review</option>
             <option value="Resolved">Resolved</option>
           </select>
-          <button
-            onClick={loadFeedback}
-            className="rounded-xl bg-cyan-500 px-4 py-3 font-semibold text-slate-950"
+
+          <select
+            className="rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
           >
-            Apply
+            <option value="createdAt">Sort by Date</option>
+            <option value="ai_priority">Sort by Priority</option>
+            <option value="ai_sentiment">Sort by Sentiment</option>
+          </select>
+
+          <button
+            onClick={fetchFeedback}
+            className="rounded-xl bg-cyan-500 px-4 py-3 font-semibold text-slate-950 transition hover:opacity-90"
+          >
+            Apply Filters
           </button>
         </div>
 
-        {loading && <p className="mb-4 text-sm text-slate-400">Loading...</p>}
-        {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
+        {loading ? (
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-slate-300">
+            Loading feedback...
+          </div>
+        ) : (
+          <>
+            <DashboardTable items={items} onStatusChange={updateStatus} />
 
-        <div className="hidden overflow-x-auto rounded-2xl border border-white/10 md:block">
-          <table className="min-w-full text-left">
-            <thead className="bg-white/5 text-sm text-slate-300">
-              <tr>
-                <th className="px-4 py-3">Title</th>
-                <th className="px-4 py-3">Category</th>
-                <th className="px-4 py-3">Sentiment</th>
-                <th className="px-4 py-3">Priority</th>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Status</th>
-              </tr>
-            </thead>
-            <tbody>
+            <div className="grid gap-4 md:hidden">
               {items.map((item) => (
-                <tr key={item._id} className="border-t border-white/10">
-                  <td className="px-4 py-3">{item.title}</td>
-                  <td className="px-4 py-3">{item.category}</td>
-                  <td className="px-4 py-3">
-                    <span className="rounded-full bg-slate-800 px-3 py-1 text-xs">
-                      {item.ai_sentiment || "Pending"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">{item.ai_priority ?? "-"}</td>
-                  <td className="px-4 py-3">
-                    {new Date(item.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 py-3">
-                    <select
-                      value={item.status}
-                      onChange={(e) => updateStatus(item._id, e.target.value)}
-                      className="rounded-lg bg-slate-900 px-3 py-2"
-                    >
-                      <option value="New">New</option>
-                      <option value="In Review">In Review</option>
-                      <option value="Resolved">Resolved</option>
-                    </select>
-                  </td>
-                </tr>
+                <FeedbackCard
+                  key={item._id}
+                  title={item.title}
+                  category={item.category}
+                  sentiment={item.ai_sentiment}
+                  priority={item.ai_priority}
+                  summary={item.ai_summary}
+                  date={item.createdAt}
+                  status={item.status}
+                  onStatusChange={(value) => updateStatus(item._id, value)}
+                />
               ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="grid gap-4 md:hidden">
-          {items.map((item) => (
-            <div
-              key={item._id}
-              className="rounded-2xl border border-white/10 bg-white/5 p-4"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="font-semibold">{item.title}</h3>
-                <span className="rounded-full bg-slate-800 px-3 py-1 text-xs">
-                  {item.ai_sentiment || "Pending"}
-                </span>
-              </div>
-              <p className="mt-2 text-sm text-slate-400">{item.category}</p>
-              <p className="mt-2 text-sm">
-                Priority: {item.ai_priority ?? "-"}
-              </p>
-              <p className="mt-1 text-sm text-slate-400">
-                {new Date(item.createdAt).toLocaleDateString()}
-              </p>
-              <select
-                value={item.status}
-                onChange={(e) => updateStatus(item._id, e.target.value)}
-                className="mt-4 w-full rounded-lg bg-slate-900 px-3 py-2"
-              >
-                <option value="New">New</option>
-                <option value="In Review">In Review</option>
-                <option value="Resolved">Resolved</option>
-              </select>
             </div>
-          ))}
-        </div>
+          </>
+        )}
       </div>
     </main>
   );
