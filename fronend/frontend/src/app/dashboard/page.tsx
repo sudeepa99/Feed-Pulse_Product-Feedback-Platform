@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import axios from "axios";
 import API from "@/app/lib/api";
 import DashboardTable from "@/app/components/dashboard-table";
 import FeedbackCard from "@/app/components/feedback-card";
@@ -18,21 +20,44 @@ type Feedback = {
   createdAt: string;
 };
 
+type FeedbackResponse = {
+  success: boolean;
+  data: {
+    items: Feedback[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  };
+  message: string;
+  error: string | null;
+};
+
 export default function DashboardPage() {
+  const router = useRouter();
+
   const [items, setItems] = useState<Feedback[]>([]);
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("createdAt");
   const [order, setOrder] = useState("desc");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const fetchFeedback = async () => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      router.push("/admin/login");
+      return;
+    }
+
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
 
-      const res = await API.get("/feedback", {
+      const res = await API.get<FeedbackResponse>("/feedback", {
         params: {
           category: category || undefined,
           status: status || undefined,
@@ -47,17 +72,27 @@ export default function DashboardPage() {
       });
 
       setItems(res.data.data.items || []);
-    } catch (error) {
-      console.error("Failed to fetch feedback", error);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        localStorage.removeItem("token");
+        router.push("/admin/login");
+      } else {
+        console.error("Failed to fetch feedback", err);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const updateStatus = async (id: string, nextStatus: string) => {
-    try {
-      const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
+    if (!token) {
+      router.push("/admin/login");
+      return;
+    }
+
+    try {
       await API.patch(
         `/feedback/${id}`,
         { status: nextStatus },
@@ -69,12 +104,24 @@ export default function DashboardPage() {
       );
 
       fetchFeedback();
-    } catch (error) {
-      console.error("Failed to update status", error);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        localStorage.removeItem("token");
+        router.push("/admin/login");
+      } else {
+        console.error("Failed to update status", err);
+      }
     }
   };
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      router.push("/admin/login");
+      return;
+    }
+
     fetchFeedback();
   }, []);
 
