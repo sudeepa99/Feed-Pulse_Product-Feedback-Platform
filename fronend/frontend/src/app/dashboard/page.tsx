@@ -20,16 +20,18 @@ type Feedback = {
   createdAt: string;
 };
 
+type Pagination = {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
 type FeedbackResponse = {
   success: boolean;
   data: {
     items: Feedback[];
-    pagination: {
-      total: number;
-      page: number;
-      limit: number;
-      totalPages: number;
-    };
+    pagination: Pagination;
   };
   message: string;
   error: string | null;
@@ -43,8 +45,16 @@ export default function DashboardPage() {
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("createdAt");
-  const [order, setOrder] = useState("desc");
+  const [order] = useState("desc");
   const [loading, setLoading] = useState(true);
+
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<Pagination>({
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 1,
+  });
 
   const fetchFeedback = async () => {
     const token = localStorage.getItem("token");
@@ -64,6 +74,7 @@ export default function DashboardPage() {
           search: search || undefined,
           sortBy,
           order,
+          page,
           limit: 10,
         },
         headers: {
@@ -72,6 +83,14 @@ export default function DashboardPage() {
       });
 
       setItems(res.data.data.items || []);
+      setPagination(
+        res.data.data.pagination || {
+          total: 0,
+          page: 1,
+          limit: 10,
+          totalPages: 1,
+        },
+      );
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {
         localStorage.removeItem("token");
@@ -114,6 +133,11 @@ export default function DashboardPage() {
     }
   };
 
+  const handleApplyFilters = () => {
+    setPage(1);
+    fetchFeedback();
+  };
+
   useEffect(() => {
     const token = localStorage.getItem("token");
 
@@ -123,7 +147,7 @@ export default function DashboardPage() {
     }
 
     fetchFeedback();
-  }, []);
+  }, [page]);
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-6 text-white md:px-8">
@@ -179,7 +203,7 @@ export default function DashboardPage() {
           </select>
 
           <button
-            onClick={fetchFeedback}
+            onClick={handleApplyFilters}
             className="rounded-xl bg-cyan-500 px-4 py-3 font-semibold text-slate-950 transition hover:opacity-90"
           >
             Apply Filters
@@ -208,6 +232,49 @@ export default function DashboardPage() {
                   onStatusChange={(value) => updateStatus(item._id, value)}
                 />
               ))}
+            </div>
+
+            <div className="mt-6 flex flex-col items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300 md:flex-row">
+              <p>
+                Page{" "}
+                <span className="font-semibold text-white">
+                  {pagination.page}
+                </span>{" "}
+                of{" "}
+                <span className="font-semibold text-white">
+                  {pagination.totalPages}
+                </span>
+                {" · "}
+                Total items:{" "}
+                <span className="font-semibold text-white">
+                  {pagination.total}
+                </span>
+              </p>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={page === 1}
+                  className="rounded-xl border border-white/10 px-4 py-2 text-white transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Previous
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPage((prev) => Math.min(prev + 1, pagination.totalPages))
+                  }
+                  disabled={
+                    page === pagination.totalPages ||
+                    pagination.totalPages === 0
+                  }
+                  className="rounded-xl border border-white/10 px-4 py-2 text-white transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           </>
         )}
