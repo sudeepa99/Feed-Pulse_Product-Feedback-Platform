@@ -37,6 +37,11 @@ type FeedbackResponse = {
   error: string | null;
 };
 
+type WeeklySummary = {
+  summary: string;
+  top_themes: string[];
+};
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -47,6 +52,9 @@ export default function DashboardPage() {
   const [sortBy, setSortBy] = useState("createdAt");
   const [order] = useState("desc");
   const [loading, setLoading] = useState(true);
+  const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(
+    null,
+  );
 
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<Pagination>({
@@ -133,6 +141,24 @@ export default function DashboardPage() {
     }
   };
 
+  const fetchWeeklySummary = async () => {
+    const token = localStorage.getItem("token");
+
+    if (!token) return;
+
+    try {
+      const res = await API.get("/feedback/summary", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setWeeklySummary(res.data.data);
+    } catch (err) {
+      console.error("Failed to fetch weekly summary", err);
+    }
+  };
+
   const handleApplyFilters = () => {
     setPage(1);
     fetchFeedback();
@@ -147,6 +173,7 @@ export default function DashboardPage() {
     }
 
     fetchFeedback();
+    fetchWeeklySummary();
   }, [page]);
 
   return (
@@ -154,6 +181,29 @@ export default function DashboardPage() {
       <div className="mx-auto max-w-7xl">
         <div className="mb-6">
           <h1 className="text-3xl font-bold md:text-4xl">Admin Dashboard</h1>
+          {weeklySummary && (
+            <div className="mb-6 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-5">
+              <h2 className="text-lg font-semibold text-white">
+                Weekly AI Summary
+              </h2>
+              <p className="mt-2 text-sm text-slate-300">
+                {weeklySummary.summary}
+              </p>
+
+              {weeklySummary.top_themes?.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {weeklySummary.top_themes.map((theme) => (
+                    <span
+                      key={theme}
+                      className="rounded-full border border-cyan-400/20 bg-slate-900 px-3 py-1 text-xs text-cyan-300"
+                    >
+                      {theme}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <p className="mt-1 text-slate-400">
             Manage, review, and prioritize product feedback.
           </p>
