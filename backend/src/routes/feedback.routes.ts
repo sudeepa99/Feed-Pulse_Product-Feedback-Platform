@@ -6,6 +6,7 @@ import {
   updateFeedbackStatus,
   deleteFeedback,
   getSummary,
+  reanalyzeFeedback,
 } from "../controllers/feedback.controller";
 import { protect } from "../middleware/auth.middleware";
 
@@ -17,5 +18,6 @@ router.get("/", protect, getAllFeedback);
 router.get("/:id", protect, getSingleFeedback);
 router.patch("/:id", protect, updateFeedbackStatus);
 router.delete("/:id", protect, deleteFeedback);
+router.post("/:id/reanalyze", protect, reanalyzeFeedback);
 
 export default router;

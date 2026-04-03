@@ -203,3 +203,37 @@ export const getSummary = async (_req: Request, res: Response) => {
       .json(apiResponse(false, null, "Failed to generate summary", error));
   }
 };
+
+export const reanalyzeFeedback = async (req: Request, res: Response) => {
+  try {
+    const feedback = await Feedback.findById(req.params.id);
+
+    if (!feedback) {
+      return res
+        .status(404)
+        .json(apiResponse(false, null, "Feedback not found", "Not found"));
+    }
+
+    const ai = await analyzeFeedbackWithGemini(
+      feedback.title,
+      feedback.description,
+    );
+
+    feedback.ai_category = ai.category;
+    feedback.ai_sentiment = ai.sentiment;
+    feedback.ai_priority = ai.priority_score;
+    feedback.ai_summary = ai.summary;
+    feedback.ai_tags = ai.tags;
+    feedback.ai_processed = true;
+
+    await feedback.save();
+
+    return res
+      .status(200)
+      .json(apiResponse(true, feedback, "AI analysis re-triggered", null));
+  } catch (error) {
+    return res
+      .status(500)
+      .json(apiResponse(false, null, "Failed to reanalyze feedback", error));
+  }
+};
