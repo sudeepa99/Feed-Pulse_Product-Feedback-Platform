@@ -1,20 +1,12 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+
 export const analyzeFeedbackWithGemini = async (
   title: string,
   description: string,
 ) => {
-  const apiKey = process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is missing");
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-  });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const prompt = `
 Analyse this product feedback. Return ONLY valid JSON with these fields:
@@ -31,7 +23,30 @@ Feedback description: ${description}
 
   const result = await model.generateContent(prompt);
   const text = result.response.text().trim();
-
   const cleaned = text.replace(/```json|```/g, "").trim();
+
+  return JSON.parse(cleaned);
+};
+
+export const generateWeeklySummaryWithGemini = async (feedbackText: string) => {
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+  const prompt = `
+You are analyzing product feedback from the last 7 days.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "summary": "short summary paragraph",
+  "top_themes": ["theme 1", "theme 2", "theme 3"]
+}
+
+Feedback:
+${feedbackText}
+`;
+
+  const result = await model.generateContent(prompt);
+  const text = result.response.text().trim();
+  const cleaned = text.replace(/```json|```/g, "").trim();
+
   return JSON.parse(cleaned);
 };

@@ -1,6 +1,9 @@
 import { Request, Response } from "express";
 import Feedback from "../models/Feedback";
-import { analyzeFeedbackWithGemini } from "../services/gemini.service";
+import {
+  analyzeFeedbackWithGemini,
+  generateWeeklySummaryWithGemini,
+} from "../services/gemini.service";
 import { apiResponse } from "../utils/apiResponse";
 
 export const createFeedback = async (req: Request, res: Response) => {
@@ -169,18 +172,31 @@ export const getSummary = async (_req: Request, res: Response) => {
       createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
     }).select("title description ai_summary ai_tags");
 
-    const combinedText = recent
-      .map((item) => `${item.title} - ${item.ai_summary || item.description}`)
-      .join("\n");
+    if (recent.length === 0) {
+      return res.status(200).json(
+        apiResponse(
+          true,
+          {
+            summary: "No feedback submitted in the last 7 days.",
+            top_themes: [],
+          },
+          "Summary generated",
+          null,
+        ),
+      );
+    }
 
-    const ai = await analyzeFeedbackWithGemini(
-      "Weekly Feedback Summary",
-      `Top 3 themes from the last 7 days:\n${combinedText}`,
-    );
+    const feedbackText = recent
+      .map((item) => {
+        return `Title: ${item.title}\nDescription: ${item.description}\nAI Summary: ${item.ai_summary || "N/A"}`;
+      })
+      .join("\n\n");
+
+    const aiSummary = await generateWeeklySummaryWithGemini(feedbackText);
 
     return res
       .status(200)
-      .json(apiResponse(true, ai, "Summary generated", null));
+      .json(apiResponse(true, aiSummary, "Summary generated", null));
   } catch (error) {
     return res
       .status(500)
