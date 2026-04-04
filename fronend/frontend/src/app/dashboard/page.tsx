@@ -55,6 +55,7 @@ export default function DashboardPage() {
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(
     null,
   );
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<Pagination>({
@@ -120,6 +121,8 @@ export default function DashboardPage() {
     }
 
     try {
+      setActionLoadingId(id);
+
       await API.patch(
         `/feedback/${id}`,
         { status: nextStatus },
@@ -130,7 +133,8 @@ export default function DashboardPage() {
         },
       );
 
-      fetchFeedback();
+      await fetchFeedback();
+      await fetchWeeklySummary();
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {
         localStorage.removeItem("token");
@@ -138,6 +142,43 @@ export default function DashboardPage() {
       } else {
         console.error("Failed to update status", err);
       }
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const reanalyzeFeedback = async (id: string) => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      router.push("/admin/login");
+      return;
+    }
+
+    try {
+      setActionLoadingId(id);
+
+      await API.post(
+        `/feedback/${id}/reanalyze`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      await fetchFeedback();
+      await fetchWeeklySummary();
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        localStorage.removeItem("token");
+        router.push("/admin/login");
+      } else {
+        console.error("Failed to reanalyze feedback", err);
+      }
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
@@ -154,8 +195,17 @@ export default function DashboardPage() {
       });
 
       setWeeklySummary(res.data.data);
-    } catch (err) {
-      console.error("Failed to fetch weekly summary", err);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        console.error("Failed to fetch weekly summary", err.response?.data);
+      } else {
+        console.error("Failed to fetch weekly summary", err);
+      }
+
+      setWeeklySummary({
+        summary: "Weekly AI summary is currently unavailable.",
+        top_themes: [],
+      });
     }
   };
 
@@ -181,8 +231,9 @@ export default function DashboardPage() {
       <div className="mx-auto max-w-7xl">
         <div className="mb-6">
           <h1 className="text-3xl font-bold md:text-4xl">Admin Dashboard</h1>
+
           {weeklySummary && (
-            <div className="mb-6 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-5">
+            <div className="mb-6 mt-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-5">
               <h2 className="text-lg font-semibold text-white">
                 Weekly AI Summary
               </h2>
@@ -204,6 +255,7 @@ export default function DashboardPage() {
               )}
             </div>
           )}
+
           <p className="mt-1 text-slate-400">
             Manage, review, and prioritize product feedback.
           </p>
@@ -266,7 +318,12 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            <DashboardTable items={items} onStatusChange={updateStatus} />
+            <DashboardTable
+              items={items}
+              onStatusChange={updateStatus}
+              onReanalyze={reanalyzeFeedback}
+              actionLoadingId={actionLoadingId}
+            />
 
             <div className="grid gap-4 md:hidden">
               {items.map((item) => (
@@ -280,6 +337,8 @@ export default function DashboardPage() {
                   date={item.createdAt}
                   status={item.status}
                   onStatusChange={(value) => updateStatus(item._id, value)}
+                  onReanalyze={() => reanalyzeFeedback(item._id)}
+                  isLoading={actionLoadingId === item._id}
                 />
               ))}
             </div>

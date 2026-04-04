@@ -1,3 +1,5 @@
+"use client";
+
 type FeedbackCardProps = {
   title: string;
   category: string;
@@ -7,6 +9,8 @@ type FeedbackCardProps = {
   date: string;
   status: string;
   onStatusChange?: (value: string) => void;
+  onReanalyze?: () => void;
+  isLoading?: boolean;
 };
 
 const sentimentStyles: Record<string, string> = {
@@ -31,6 +35,8 @@ export default function FeedbackCard({
   date,
   status,
   onStatusChange,
+  onReanalyze,
+  isLoading,
 }: FeedbackCardProps) {
   const label = sentiment || "Pending";
 
@@ -76,12 +82,24 @@ export default function FeedbackCard({
         <select
           value={status}
           onChange={(e) => onStatusChange(e.target.value)}
-          className="mt-4 w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white outline-none"
+          disabled={isLoading}
+          className="mt-4 w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-50"
         >
           <option value="New">New</option>
           <option value="In Review">In Review</option>
           <option value="Resolved">Resolved</option>
         </select>
+      )}
+
+      {onReanalyze && (
+        <button
+          type="button"
+          onClick={onReanalyze}
+          disabled={isLoading}
+          className="mt-3 w-full rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-sm text-cyan-300 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isLoading ? "Re-running AI..." : "Re-run AI Analysis"}
+        </button>
       )}
     </div>
   );

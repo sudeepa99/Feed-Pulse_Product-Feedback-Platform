@@ -14,6 +14,8 @@ type Feedback = {
 type Props = {
   items: Feedback[];
   onStatusChange: (id: string, status: string) => void;
+  onReanalyze: (id: string) => void;
+  actionLoadingId?: string | null;
 };
 
 const sentimentStyles: Record<string, string> = {
@@ -23,7 +25,12 @@ const sentimentStyles: Record<string, string> = {
   Pending: "bg-slate-800 text-slate-300 border border-slate-700",
 };
 
-export default function DashboardTable({ items, onStatusChange }: Props) {
+export default function DashboardTable({
+  items,
+  onStatusChange,
+  onReanalyze,
+  actionLoadingId,
+}: Props) {
   return (
     <div className="hidden overflow-x-auto rounded-2xl border border-white/10 bg-white/5 md:block">
       <table className="min-w-full text-left">
@@ -36,6 +43,7 @@ export default function DashboardTable({ items, onStatusChange }: Props) {
             <th className="px-4 py-4">Summary</th>
             <th className="px-4 py-4">Date</th>
             <th className="px-4 py-4">Status</th>
+            <th className="px-4 py-4">Actions</th>
           </tr>
         </thead>
 
@@ -72,11 +80,24 @@ export default function DashboardTable({ items, onStatusChange }: Props) {
                     value={item.status}
                     onChange={(e) => onStatusChange(item._id, e.target.value)}
                     className="rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white outline-none"
+                    disabled={actionLoadingId === item._id}
                   >
                     <option value="New">New</option>
                     <option value="In Review">In Review</option>
                     <option value="Resolved">Resolved</option>
                   </select>
+                </td>
+                <td className="px-4 py-4">
+                  <button
+                    type="button"
+                    onClick={() => onReanalyze(item._id)}
+                    disabled={actionLoadingId === item._id}
+                    className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-300 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {actionLoadingId === item._id
+                      ? "Re-running..."
+                      : "Re-run AI"}
+                  </button>
                 </td>
               </tr>
             );
