@@ -20,6 +20,13 @@ type Feedback = {
   createdAt: string;
 };
 
+type DashboardStats = {
+  totalFeedback: number;
+  openItems: number;
+  averagePriority: number;
+  mostCommonTag: string;
+};
+
 type Pagination = {
   total: number;
   page: number;
@@ -63,6 +70,12 @@ export default function DashboardPage() {
     page: 1,
     limit: 10,
     totalPages: 1,
+  });
+  const [stats, setStats] = useState<DashboardStats>({
+    totalFeedback: 0,
+    openItems: 0,
+    averagePriority: 0,
+    mostCommonTag: "-",
   });
 
   const fetchFeedback = async () => {
@@ -135,6 +148,7 @@ export default function DashboardPage() {
 
       await fetchFeedback();
       await fetchWeeklySummary();
+      await fetchStats();
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {
         localStorage.removeItem("token");
@@ -170,6 +184,7 @@ export default function DashboardPage() {
 
       await fetchFeedback();
       await fetchWeeklySummary();
+      await fetchStats();
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {
         localStorage.removeItem("token");
@@ -209,6 +224,28 @@ export default function DashboardPage() {
     }
   };
 
+  const fetchStats = async () => {
+    const token = localStorage.getItem("token");
+
+    if (!token) return;
+
+    try {
+      const res = await API.get("/feedback/stats", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setStats(res.data.data);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        console.error("Failed to fetch stats", err.response?.data);
+      } else {
+        console.error("Failed to fetch stats", err);
+      }
+    }
+  };
+
   const handleApplyFilters = () => {
     setPage(1);
     fetchFeedback();
@@ -224,6 +261,7 @@ export default function DashboardPage() {
 
     fetchFeedback();
     fetchWeeklySummary();
+    fetchStats();
   }, [page]);
 
   return (
@@ -261,8 +299,12 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <StatsBar items={items} />
-
+        <StatsBar
+          totalFeedback={stats.totalFeedback}
+          openItems={stats.openItems}
+          averagePriority={stats.averagePriority}
+          mostCommonTag={stats.mostCommonTag}
+        />
         <div className="mb-6 grid gap-3 md:grid-cols-5">
           <input
             className="rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none"

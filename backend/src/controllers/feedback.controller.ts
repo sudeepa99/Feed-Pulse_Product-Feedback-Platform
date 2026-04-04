@@ -237,3 +237,59 @@ export const reanalyzeFeedback = async (req: Request, res: Response) => {
       .json(apiResponse(false, null, "Failed to reanalyze feedback", error));
   }
 };
+
+export const getFeedbackStats = async (_req: Request, res: Response) => {
+  try {
+    const totalFeedback = await Feedback.countDocuments();
+    const openItems = await Feedback.countDocuments({
+      status: { $ne: "Resolved" },
+    });
+
+    const priorityResult = await Feedback.aggregate([
+      {
+        $match: {
+          ai_priority: { $exists: true, $ne: null },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          averagePriority: { $avg: "$ai_priority" },
+        },
+      },
+    ]);
+
+    const tagResult = await Feedback.aggregate([
+      { $unwind: "$ai_tags" },
+      {
+        $group: {
+          _id: "$ai_tags",
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { count: -1 } },
+      { $limit: 1 },
+    ]);
+
+    return res.status(200).json(
+      apiResponse(
+        true,
+        {
+          totalFeedback,
+          openItems,
+          averagePriority:
+            priorityResult.length > 0
+              ? Number(priorityResult[0].averagePriority.toFixed(1))
+              : 0,
+          mostCommonTag: tagResult.length > 0 ? tagResult[0]._id : "-",
+        },
+        "Stats fetched",
+        null,
+      ),
+    );
+  } catch (error) {
+    return res
+      .status(500)
+      .json(apiResponse(false, null, "Failed to fetch stats", error));
+  }
+};
