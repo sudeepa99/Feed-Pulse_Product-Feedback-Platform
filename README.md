@@ -225,9 +225,11 @@ Empty state handling
 
 ## Screenshots
 
-![Dashboard](<Screenshot 2026-04-04 234002.png>)
-![Feedback Form](<Screenshot 2026-04-04 234127-1.png>)
-![Login](<Screenshot 2026-04-04 234150-1.png>)
+## Screenshots
+
+![Dashboard](screenshots/ab.png)
+![Feedback Form](screenshots/abc.png)
+![Login](screenshots/abcd.png)
 
 ---
 
