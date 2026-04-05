@@ -1,78 +1,101 @@
 "use client";
 
-import Link from "next/link";
-import { MessageSquareText, LayoutDashboard } from "lucide-react";
-import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import axios from "axios";
+import API from "@/app/lib/api";
 
-export default function Navbar() {
+type LoginResponse = {
+  success: boolean;
+  data: {
+    token: string;
+  };
+  message: string;
+  error: string | null;
+};
+
+type ApiErrorResponse = {
+  message?: string;
+  error?: string;
+};
+
+export default function AdminLoginPage() {
   const router = useRouter();
-  const pathname = usePathname();
-
-  const [token, setToken] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const syncAuth = () => {
-      setToken(localStorage.getItem("token"));
-    };
+    const token = localStorage.getItem("token");
+    if (token) {
+      router.push("/dashboard");
+    }
+  }, [router]);
 
-    syncAuth();
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError("");
 
-    window.addEventListener("auth-changed", syncAuth);
-    window.addEventListener("storage", syncAuth);
+    try {
+      setLoading(true);
 
-    return () => {
-      window.removeEventListener("auth-changed", syncAuth);
-      window.removeEventListener("storage", syncAuth);
-    };
-  }, [pathname]);
+      const res = await API.post<LoginResponse>("/auth/login", {
+        email,
+        password,
+      });
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    setToken(null);
-    window.dispatchEvent(new Event("auth-changed"));
-    router.push("/admin/login");
+      localStorage.setItem("token", res.data.data.token);
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      if (axios.isAxiosError<ApiErrorResponse>(err)) {
+        setError(err.response?.data?.message || "Invalid admin credentials");
+      } else {
+        setError("Something went wrong");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/80 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-8">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="rounded-xl bg-cyan-500 p-2 text-slate-950">
-            <MessageSquareText size={18} />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-white">FeedPulse</p>
-            <p className="text-xs text-slate-400">AI Feedback Platform</p>
-          </div>
-        </Link>
+    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
+      <form
+        onSubmit={handleLogin}
+        className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl"
+      >
+        <h1 className="text-2xl font-bold">Admin Login</h1>
+        <p className="mt-1 text-sm text-slate-400">
+          Access the feedback dashboard
+        </p>
 
-        <nav className="flex items-center gap-3">
-          <Link
-            href="/"
-            className="rounded-xl border border-white/10 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/5"
+        <div className="mt-6 space-y-4">
+          <input
+            className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none"
+            placeholder="Admin email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+
+          <input
+            type="password"
+            className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          {error && <p className="text-sm text-rose-400">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-xl bg-cyan-500 px-4 py-3 font-semibold text-slate-950 transition hover:opacity-90 disabled:opacity-50"
           >
-            Submit Feedback
-          </Link>
-
-          {token ? (
-            <button
-              onClick={handleLogout}
-              className="rounded-xl border border-white/10 px-4 py-2 text-sm text-white hover:bg-white/5"
-            >
-              Logout
-            </button>
-          ) : (
-            <Link
-              href="/admin/login"
-              className="flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:opacity-90"
-            >
-              <LayoutDashboard size={16} />
-              Admin
-            </Link>
-          )}
-        </nav>
-      </div>
-    </header>
+            {loading ? "Logging in..." : "Login"}
+          </button>
+        </div>
+      </form>
+    </main>
   );
 }
