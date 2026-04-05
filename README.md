@@ -227,9 +227,9 @@ Empty state handling
 
 ## Screenshots
 
-![Dashboard](Screenshots/ab.png)
-![Feedback Form](Screenshots/abc.png)
-![Login](Screenshots/abcd.png)
+![Dashboard](./screenshots/ab.png)
+![Feedback Form](./screenshots/abc.png)
+![Login](./screenshots/abcd.png)
 
 ---
 
